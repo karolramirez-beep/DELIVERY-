@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Control de Repartidores PWA</title>
+  
+  <!-- Configuración PWA e Iconos Móviles -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Repartidores">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2830/2830305.png">
+
+  <!-- Tailwind CSS & FontAwesome Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: 80px;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; color: black; padding-bottom: 0; }
+      .print-card { border: 1px solid #ccc; box-shadow: none; }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
+
+  <!-- ENCABEZADO SUPERIOR -->
+  <header class="bg-slate-800/90 backdrop-blur sticky top-0 z-40 border-b border-slate-700 px-4 py-3 flex items-center justify-between no-print">
+    <div class="flex items-center space-x-2">
+      <div class="bg-blue-600 text-white p-2 rounded-xl shadow-lg shadow-blue-500/30">
+        <i class="fa-solid fa-motorcycle text-lg"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base leading-tight">Control Repartos</h1>
+        <p class="text-xs text-slate-400" id="header-subtitle">Multi-Sucursal & Repartidores</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <button onclick="loadDemoData()" title="Cargar Datos Demo" class="bg-slate-700 hover:bg-slate-600 text-amber-400 text-xs px-2.5 py-1.5 rounded-lg border border-amber-500/30 flex items-center space-x-1">
+        <i class="fa-solid fa-flask"></i>
+        <span class="hidden sm:inline">Demo</span>
+      </button>
+      <button onclick="openManageBranchesModal()" class="bg-slate-700 hover:bg-slate-600 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600">
+        <i class="fa-solid fa-store text-blue-400"></i>
+      </button>
+      <button onclick="openManageDriversModal()" class="bg-slate-700 hover:bg-slate-600 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600">
+        <i class="fa-solid fa-id-badge text-emerald-400"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="max-w-4xl mx-auto p-4 space-y-6">
+
+    <!-- SECCIÓN 1: NUEVO PEDIDO -->
+    <section id="sec-nuevo" class="tab-content">
+      <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+          <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+            <i class="fa-solid fa-plus-circle text-blue-500"></i>
+            <span>Registrar Salida de Pedido</span>
+          </h2>
+        </div>
+
+        <form id="order-form" onsubmit="handleCreateOrder(event)" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Sucursal de Salida</label>
+              <select id="input-branch" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Repartidor Asignado</label>
+              <select id="input-driver" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Nombre del Cliente</label>
+              <input type="text" id="input-client" placeholder="Ej. María López" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-400 mb-1">Teléfono / WhatsApp</label>
+              <input type="tel" id="input-phone" placeholder="Ej. 5512345678" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Dirección / Notas de Entrega</label>
+            <input type="text" id="input-address" placeholder="Ej. Av. Reforma 123, Depto 4B" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200">
+          </div>
+
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center space-x-2 transition active:scale-[0.98]">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>Despachar Pedido Ahora</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2: PEDIDOS ACTIVOS EN RUTA -->
+    <section id="sec-activos" class="tab-content hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-route text-amber-400"></i>
+          <span>Pedidos En Camino</span>
+        </h2>
+        <span id="active-count-badge" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-bold px-2.5 py-1 rounded-full">0 activos</span>
+      </div>
+
+      <div id="active-orders-list" class="space-y-3">
+        <!-- Render dinámico -->
+      </div>
+    </section>
+
+    <!-- SECCIÓN 3: HISTORIAL Y REPORTES AVANZADOS -->
+    <section id="sec-reportes" class="tab-content hidden">
+      <div class="bg-slate-800 rounded-2xl p-5 border border-slate-700 shadow-xl space-y-5">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+              <i class="fa-solid fa-chart-pie text-emerald-400"></i>
+              <span>Reporte e Histórico de Envíos</span>
+            </h2>
+            <p class="text-xs text-slate-400">Consulta y exporta métricas por período o repartidor</p>
+          </div>
+          
+          <div class="flex items-center space-x-2 no-print">
+            <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-semibold flex items-center space-x-1.5 shadow-lg shadow-emerald-600/20">
+              <i class="fa-solid fa-file-excel"></i>
+              <span>Excel</span>
+            </button>
+            <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-2 rounded-lg font-semibold flex items-center space-x-1.5 border border-slate-600">
+              <i class="fa-solid fa-print"></i>
+              <span>Imprimir</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- FILTROS DE HISTÓRICO Y RANGOS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 no-print">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Rango Predefinido</label>
+            <select id="report-preset" onchange="handlePresetChange()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+              <option value="today">Hoy</option>
+              <option value="yesterday">Ayer</option>
+              <option value="week">Esta Semana</option>
+              <option value="month" selected>Este Mes</option>
+              <option value="last_month">Mes Pasado</option>
+              <option value="custom">Período Personalizado...</option>
+              <option value="all">Todo el Histórico</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Fecha Inicial</label>
+            <input type="date" id="report-date-start" onchange="applyReportFilters()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Fecha Final</label>
+            <input type="date" id="report-date-end" onchange="applyReportFilters()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">Repartidor</label>
+            <select id="report-filter-driver" onchange="applyReportFilters()" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200">
+              <!-- Carga dinámicamente -->
+            </select>
+          </div>
+        </div>
+
+        <!-- TARJETAS DE MÉTRICAS -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80">
+            <p class="text-[11px] text-slate-400 font-medium">Pedidos Totales</p>
+            <p class="text-xl font-bold text-white mt-1" id="rep-total-orders">0</p>
+          </div>
+          <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80">
+            <p class="text-[11px] text-slate-400 font-medium">Entregados</p>
+            <p class="text-xl font-bold text-emerald-400 mt-1" id="rep-completed-orders">0</p>
+          </div>
+          <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80">
+            <p class="text-[11px] text-slate-400 font-medium">Tiempo Promedio</p>
+            <p class="text-xl font-bold text-blue-400 mt-1" id="rep-avg-time">0 min</p>
+          </div>
+          <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/80">
+            <p class="text-[11px] text-slate-400 font-medium">Efectividad</p>
+            <p class="text-xl font-bold text-amber-400 mt-1" id="rep-rate">0%</p>
+          </div>
+        </div>
+
+        <!-- TABLA RESUMEN POR REPARTIDOR -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Desglose por Repartidor en este Período</h3>
+          <div class="overflow-x-auto rounded-xl border border-slate-700">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900 text-slate-400 uppercase font-semibold">
+                <tr>
+                  <th class="p-2.5">Repartidor</th>
+                  <th class="p-2.5 text-center">Total</th>
+                  <th class="p-2.5 text-center">Entregados</th>
+                  <th class="p-2.5 text-center">T. Promedio</th>
+                </tr>
+              </thead>
+              <tbody id="driver-performance-tbody" class="divide-y divide-slate-700/60 bg-slate-800/50">
+                <!-- Dinámico -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- LISTA COMPLETA DEL PERÍODO -->
+        <div>
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Detalle de Pedidos del Período</h3>
+          <div class="overflow-x-auto rounded-xl border border-slate-700">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900 text-slate-400 uppercase font-semibold">
+                <tr>
+                  <th class="p-2.5">Fecha / Hora</th>
+                  <th class="p-2.5">Cliente</th>
+                  <th class="p-2.5">Sucursal</th>
+                  <th class="p-2.5">Repartidor</th>
+                  <th class="p-2.5 text-center">Tiempo</th>
+                  <th class="p-2.5 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="report-orders-tbody" class="divide-y divide-slate-700/60 bg-slate-800/50">
+                <!-- Dinámico -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BARRA DE NAVEGACIÓN INFERIOR (MÓVIL) -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur border-t border-slate-700 px-6 py-2 flex justify-around items-center z-40 no-print">
+    <button onclick="switchTab('sec-nuevo')" id="nav-sec-nuevo" class="tab-btn active flex flex-col items-center text-blue-400 font-medium">
+      <i class="fa-solid fa-paper-plane text-lg mb-0.5"></i>
+      <span class="text-[10px]">Despachar</span>
+    </button>
+    <button onclick="switchTab('sec-activos')" id="nav-sec-activos" class="tab-btn flex flex-col items-center text-slate-400 font-medium relative">
+      <i class="fa-solid fa-motorcycle text-lg mb-0.5"></i>
+      <span class="text-[10px]">En Ruta</span>
+      <span id="badge-active-dot" class="hidden absolute top-0 right-2 w-2 h-2 bg-amber-500 rounded-full animate-ping"></span>
+    </button>
+    <button onclick="switchTab('sec-reportes')" id="nav-sec-reportes" class="tab-btn flex flex-col items-center text-slate-400 font-medium">
+      <i class="fa-solid fa-chart-simple text-lg mb-0.5"></i>
+      <span class="text-[10px]">Reportes</span>
+    </button>
+  </nav>
+
+  <!-- MODAL: GESTIONAR SUCURSALES -->
+  <div id="modal-branches" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 p-5 space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-store text-blue-400"></i>
+          <span>Gestionar Sucursales</span>
+        </h3>
+        <button onclick="closeModal('modal-branches')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="flex space-x-2">
+        <input type="text" id="new-branch-name" placeholder="Nueva Sucursal..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200">
+        <button onclick="addBranch()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-2 rounded-xl">Agregar</button>
+      </div>
+
+      <div id="branches-manage-list" class="flex-1 overflow-y-auto space-y-2 pr-1">
+        <!-- Render Lista -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GESTIONAR REPARTIDORES -->
+  <div id="modal-drivers" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 p-5 space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <h3 class="font-bold text-white flex items-center space-x-2">
+          <i class="fa-solid fa-id-badge text-emerald-400"></i>
+          <span>Gestionar Repartidores</span>
+        </h3>
+        <button onclick="closeModal('modal-drivers')" class="text-slate-400 hover:text-white">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="flex space-x-2">
+        <input type="text" id="new-driver-name" placeholder="Nombre Repartidor..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200">
+        <button onclick="addDriver()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl">Agregar</button>
+      </div>
+
+      <div id="drivers-manage-list" class="flex-1 overflow-y-auto space-y-2 pr-1">
+        <!-- Render Lista -->
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT LOGIC -->
+  <script>
+    // ESTADO INICIAL
+    const DEFAULT_BRANCHES = [
+      "Sucursal Centro", "Sucursal Norte", "Sucursal Sur",
+      "Sucursal Este", "Sucursal Oeste", "Plaza Central", "Aeropuerto"
+    ];
+
+    const DEFAULT_DRIVERS = Array.from({ length: 16 }, (_, i) => `Repartidor #${i + 1}`);
+
+    let branches = JSON.parse(localStorage.getItem('app_branches')) || DEFAULT_BRANCHES;
+    let drivers = JSON.parse(localStorage.getItem('app_drivers')) || DEFAULT_DRIVERS;
+    let orders = JSON.parse(localStorage.getItem('app_orders')) || [];
+
+    // INICIALIZAR APP
+    document.addEventListener('DOMContentLoaded', () => {
+      populateSelects();
+      renderActiveOrders();
+      setPresetDates('month');
+      applyReportFilters();
+      setInterval(updateLiveTimers, 30000); // Actualiza timers cada 30s
+      registerServiceWorker();
+    });
+
+    // REGISTRO DE SERVICE WORKER PARA PWA
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').then(() => {
+          console.log('PWA Service Worker Registrado correctamente.');
+        }).catch(err => console.log('SW error:', err));
+      }
+    }
+
+    // NAVEGACIÓN TAB
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-blue-400');
+        btn.classList.add('text-slate-400');
+      });
+
+      const activeBtn = document.getElementById(`nav-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-400');
+        activeBtn.classList.add('text-blue-400');
+      }
+
+      if (tabId === 'sec-reportes') {
+        applyReportFilters();
+      }
+    }
+
+    // OPCIONES DE SELECTS
+    function populateSelects() {
+      const branchSel = document.getElementById('input-branch');
+      branchSel.innerHTML = branches.map(b => `<option value="${b}">${b}</option>`).join('');
+
+      const driverSel = document.getElementById('input-driver');
+      driverSel.innerHTML = drivers.map(d => `<option value="${d}">${d}</option>`).join('');
+
+      const repDriverSel = document.getElementById('report-filter-driver');
+      repDriverSel.innerHTML = `<option value="ALL">Todos los Repartidores</option>` +
+        drivers.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    // MANTENIMIENTO SUCURSALES Y REPARTIDORES
+    function openManageBranchesModal() {
+      renderBranchManageList();
+      document.getElementById('modal-branches').classList.remove('hidden');
+    }
+
+    function openManageDriversModal() {
+      renderDriverManageList();
+      document.getElementById('modal-drivers').classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function renderBranchManageList() {
+      const container = document.getElementById('branches-manage-list');
+      container.innerHTML = branches.map((b, idx) => `
+        <div class="flex items-center justify-between bg-slate-900/80 p-2 rounded-xl border border-slate-700 text-xs">
+          <input type="text" value="${b}" onchange="editBranch(${idx}, this.value)" class="bg-transparent text-slate-200 focus:outline-none focus:border-b border-blue-500 px-1 font-medium">
+          <button onclick="deleteBranch(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    function renderDriverManageList() {
+      const container = document.getElementById('drivers-manage-list');
+      container.innerHTML = drivers.map((d, idx) => `
+        <div class="flex items-center justify-between bg-slate-900/80 p-2 rounded-xl border border-slate-700 text-xs">
+          <input type="text" value="${d}" onchange="editDriver(${idx}, this.value)" class="bg-transparent text-slate-200 focus:outline-none focus:border-b border-emerald-500 px-1 font-medium">
+          <button onclick="deleteDriver(${idx})" class="text-rose-400 hover:text-rose-300 p-1"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `).join('');
+    }
+
+    function addBranch() {
+      const val = document.getElementById('new-branch-name').value.trim();
+      if (val) {
+        branches.push(val);
+        saveMasterData();
+        document.getElementById('new-branch-name').value = '';
+        renderBranchManageList();
+      }
+    }
+
+    function editBranch(idx, val) {
+      if (val.trim()) {
+        branches[idx] = val.trim();
+        saveMasterData();
+      }
+    }
+
+    function deleteBranch(idx) {
+      if (confirm('¿Eliminar esta sucursal?')) {
+        branches.splice(idx, 1);
+        saveMasterData();
+        renderBranchManageList();
+      }
+    }
+
+    function addDriver() {
+      const val = document.getElementById('new-driver-name').value.trim();
+      if (val) {
+        drivers.push(val);
+        saveMasterData();
+        document.getElementById('new-driver-name').value = '';
+        renderDriverManageList();
+      }
+    }
+
+    function editDriver(idx, val) {
+      if (val.trim()) {
+        drivers[idx] = val.trim();
+        saveMasterData();
+      }
+    }
+
+    function deleteDriver(idx) {
+      if (confirm('¿Eliminar este repartidor?')) {
+        drivers.splice(idx, 1);
+        saveMasterData();
+        renderDriverManageList();
+      }
+    }
+
+    function saveMasterData() {
+      localStorage.setItem('app_branches', JSON.stringify(branches));
+      localStorage.setItem('app_drivers', JSON.stringify(drivers));
+      populateSelects();
+    }
+
+    // CREACIÓN Y GESTIÓN DE PEDIDOS
+    function handleCreateOrder(e) {
+      e.preventDefault();
+      const newOrder = {
+        id: 'ORD-' + Date.now().toString().slice(-6),
+        branch: document.getElementById('input-branch').value,
+        driver: document.getElementById('input-driver').value,
+        client: document.getElementById('input-client').value,
+        phone: document.getElementById('input-phone').value,
+        address: document.getElementById('input-address').value,
+        status: 'EN_RUTA',
+        startTime: new Date().toISOString(),
+        endTime: null,
+        durationMinutes: null
+      };
+
+      orders.unshift(newOrder);
+      saveOrders();
+      document.getElementById('order-form').reset();
+      switchTab('sec-activos');
+      renderActiveOrders();
+    }
+
+    function markDelivered(id) {
+      const order = orders.find(o => o.id === id);
+      if (order) {
+        order.status = 'ENTREGADO';
+        order.endTime = new Date().toISOString();
+        const start = new Date(order.startTime);
+        const end = new Date(order.endTime);
+        order.durationMinutes = Math.max(1, Math.round((end - start) / 60000));
+        saveOrders();
+        renderActiveOrders();
+      }
+    }
+
+    function saveOrders() {
+      localStorage.setItem('app_orders', JSON.stringify(orders));
+    }
+
+    function renderActiveOrders() {
+      const activeList = orders.filter(o => o.status === 'EN_RUTA');
+      const container = document.getElementById('active-orders-list');
+      const badge = document.getElementById('active-count-badge');
+      const dot = document.getElementById('badge-active-dot');
+
+      badge.textContent = `${activeList.length} activos`;
+      if (activeList.length > 0) {
+        dot.classList.remove('hidden');
+      } else {
+        dot.classList.add('hidden');
+      }
+
+      if (activeList.length === 0) {
+        container.innerHTML = `
+          <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-8 text-center text-slate-400">
+            <i class="fa-solid fa-circle-check text-3xl text-emerald-500/50 mb-2"></i>
+            <p class="text-sm">No hay pedidos en camino en este momento.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = activeList.map(o => {
+        const elapsed = Math.max(0, Math.floor((new Date() - new Date(o.startTime)) / 60000));
+        const cleanPhone = o.phone ? o.phone.replace(/\D/g, '') : '';
+        const waLink = cleanPhone ? `https://wa.me/${cleanPhone}` : '#';
+
+        return `
+          <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-lg space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+              <div>
+                <span class="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">${o.branch}</span>
+                <span class="text-xs font-bold text-slate-300 ml-1">${o.driver}</span>
+              </div>
+              <div class="flex items-center space-x-1 text-amber-400 font-bold text-xs bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                <i class="fa-regular fa-clock"></i>
+                <span data-starttime="${o.startTime}">${elapsed} min</span>
+              </div>
+            </div>
+
+            <div class="flex items-start justify-between">
+              <div>
+                <h4 class="font-bold text-white text-base">${o.client}</h4>
+                <p class="text-xs text-slate-400">${o.address || 'Sin dirección registrada'}</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Salida: ${new Date(o.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+              </div>
+              
+              <div class="flex items-center space-x-1">
+                ${o.phone ? `
+                  <a href="tel:${cleanPhone}" class="w-8 h-8 rounded-full bg-slate-700 text-slate-200 flex items-center justify-center text-xs"><i class="fa-solid fa-phone"></i></a>
+                  <a href="${waLink}" target="_blank" class="w-8 h-8 rounded-full bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs"><i class="fa-brands fa-whatsapp"></i></a>
+                ` : ''}
+              </div>
+            </div>
+
+            <button onclick="markDelivered('${o.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-3 rounded-xl shadow-lg shadow-emerald-600/20 text-xs flex items-center justify-center space-x-1.5">
+              <i class="fa-solid fa-check"></i>
+              <span>Marcar Como Entregado</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateLiveTimers() {
+      document.querySelectorAll('[data-starttime]').forEach(el => {
+        const start = new Date(el.getAttribute('data-starttime'));
+        const elapsed = Math.max(0, Math.floor((new Date() - start) / 60000));
+        el.textContent = `${elapsed} min`;
+      });
+    }
+
+    // FILTROS Y REPORTES AVANZADOS
+    function handlePresetChange() {
+      const preset = document.getElementById('report-preset').value;
+      if (preset !== 'custom') {
+        setPresetDates(preset);
+        applyReportFilters();
+      }
+    }
+
+    function setPresetDates(type) {
+      const now = new Date();
+      let start = new Date();
+      let end = new Date();
+
+      if (type === 'today') {
+        start.setHours(0,0,0,0);
+        end.setHours(23,59,59,999);
+      } else if (type === 'yesterday') {
+        start.setDate(now.getDate() - 1);
+        start.setHours(0,0,0,0);
+        end.setDate(now.getDate() - 1);
+        end.setHours(23,59,59,999);
+      } else if (type === 'week') {
+        const day = now.getDay() || 7;
+        start.setDate(now.getDate() - day + 1);
+        start.setHours(0,0,0,0);
+        end.setHours(23,59,59,999);
+      } else if (type === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      } else if (type === 'last_month') {
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+      } else if (type === 'all') {
+        start = new Date(2020, 0, 1);
+        end = new Date(2030, 11, 31);
+      }
+
+      document.getElementById('report-date-start').value = start.toISOString().split('T')[0];
+      document.getElementById('report-date-end').value = end.toISOString().split('T')[0];
+    }
+
+    function applyReportFilters() {
+      const startDateVal = document.getElementById('report-date-start').value;
+      const endDateVal = document.getElementById('report-date-end').value;
+      const driverVal = document.getElementById('report-filter-driver').value;
+
+      const start = startDateVal ? new Date(startDateVal + 'T00:00:00') : new Date(0);
+      const end = endDateVal ? new Date(endDateVal + 'T23:59:59') : new Date();
+
+      const filtered = orders.filter(o => {
+        const d = new Date(o.startTime);
+        const matchDate = d >= start && d <= end;
+        const matchDriver = (driverVal === 'ALL') || (o.driver === driverVal);
+        return matchDate && matchDriver;
+      });
+
+      // Calcular Métricas
+      const total = filtered.length;
+      const completed = filtered.filter(o => o.status === 'ENTREGADO');
+      const avgTime = completed.length > 0 
+        ? Math.round(completed.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0) / completed.length) 
+        : 0;
+      const rate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+
+      document.getElementById('rep-total-orders').textContent = total;
+      document.getElementById('rep-completed-orders').textContent = completed.length;
+      document.getElementById('rep-avg-time').textContent = `${avgTime} min`;
+      document.getElementById('rep-rate').textContent = `${rate}%`;
+
+      // Render Tabla Rendimiento Repartidores
+      const driverStats = drivers.map(drv => {
+        const drvOrders = filtered.filter(o => o.driver === drv);
+        const drvCompleted = drvOrders.filter(o => o.status === 'ENTREGADO');
+        const drvAvg = drvCompleted.length > 0
+          ? Math.round(drvCompleted.reduce((a, c) => a + (c.durationMinutes || 0), 0) / drvCompleted.length)
+          : 0;
+        return { name: drv, total: drvOrders.length, completed: drvCompleted.length, avg: drvAvg };
+      }).filter(s => driverVal === 'ALL' ? s.total > 0 : s.name === driverVal);
+
+      document.getElementById('driver-performance-tbody').innerHTML = driverStats.map(s => `
+        <tr>
+          <td class="p-2.5 font-bold text-slate-200">${s.name}</td>
+          <td class="p-2.5 text-center">${s.total}</td>
+          <td class="p-2.5 text-center text-emerald-400 font-semibold">${s.completed}</td>
+          <td class="p-2.5 text-center text-blue-400">${s.avg} min</td>
+        </tr>
+      `).join('') || `<tr><td colspan="4" class="p-4 text-center text-slate-500">Sin datos de repartidores en este período.</td></tr>`;
+
+      // Render Lista Detallada
+      document.getElementById('report-orders-tbody').innerHTML = filtered.map(o => `
+        <tr>
+          <td class="p-2.5 text-slate-300">${new Date(o.startTime).toLocaleDateString()} ${new Date(o.startTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+          <td class="p-2.5 font-semibold text-white">${o.client}</td>
+          <td class="p-2.5 text-slate-400">${o.branch}</td>
+          <td class="p-2.5 text-slate-300">${o.driver}</td>
+          <td class="p-2.5 text-center font-bold ${o.durationMinutes ? 'text-blue-400' : 'text-amber-400'}">${o.durationMinutes ? o.durationMinutes + ' min' : 'En Ruta'}</td>
+          <td class="p-2.5 text-center">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'ENTREGADO' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+              ${o.status}
+            </span>
+          </td>
+        </tr>
+      `).join('') || `<tr><td colspan="6" class="p-4 text-center text-slate-500">No hay registros para las fechas seleccionadas.</td></tr>`;
+    }
+
+    // EXPORTAR A EXCEL
+    function exportToExcel() {
+      const startDateVal = document.getElementById('report-date-start').value;
+      const endDateVal = document.getElementById('report-date-end').value;
+      const driverVal = document.getElementById('report-filter-driver').value;
+
+      const start = startDateVal ? new Date(startDateVal + 'T00:00:00') : new Date(0);
+      const end = endDateVal ? new Date(endDateVal + 'T23:59:59') : new Date();
+
+      const filtered = orders.filter(o => {
+        const d = new Date(o.startTime);
+        return d >= start && d <= end && (driverVal === 'ALL' || o.driver === driverVal);
+      });
+
+      const exportData = filtered.map(o => ({
+        'ID Pedido': o.id,
+        'Fecha Salida': new Date(o.startTime).toLocaleDateString(),
+        'Hora Salida': new Date(o.startTime).toLocaleTimeString(),
+        'Hora Entrega': o.endTime ? new Date(o.endTime).toLocaleTimeString() : 'N/A',
+        'Tiempo (Minutos)': o.durationMinutes || 'En camino',
+        'Sucursal': o.branch,
+        'Repartidor': o.driver,
+        'Cliente': o.client,
+        'Teléfono': o.phone || '',
+        'Dirección': o.address || '',
+        'Estado': o.status
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Histórico Pedidos");
+      XLSX.writeFile(workbook, `Reporte_Repartos_${startDateVal}_al_${endDateVal}.xlsx`);
+    }
+
+    // GENERADOR DE DATOS HISTÓRICOS DEMO (Últimos 60 días)
+    function loadDemoData() {
+      if (confirm('¿Deseas generar ~100 pedidos ficticios distribuidos en los últimos 2 meses para probar los reportes?')) {
+        const demoOrders = [];
+        const sampleClients = ["Carlos Ruíz", "Ana Gómez", "Pedro Infante", "Sofía Mendoza", "Luis Hernández", "Elena Torres"];
+        const now = new Date();
+
+        for (let i = 0; i < 110; i++) {
+          const daysAgo = Math.floor(Math.random() * 55);
+          const startTime = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000 - Math.random() * 8 * 3600 * 1000);
+          const duration = Math.floor(Math.random() * 35) + 12;
+          const endTime = new Date(startTime.getTime() + duration * 60000);
+
+          demoOrders.push({
+            id: 'DEMO-' + (1000 + i),
+            branch: branches[Math.floor(Math.random() * branches.length)],
+            driver: drivers[Math.floor(Math.random() * drivers.length)],
+            client: sampleClients[Math.floor(Math.random() * sampleClients.length)],
+            phone: '55' + Math.floor(10000000 + Math.random() * 90000000),
+            address: 'Calle Demo ' + (i + 1),
+            status: 'ENTREGADO',
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            durationMinutes: duration
+          });
+        }
+
+        orders = [...demoOrders, ...orders];
+        saveOrders();
+        applyReportFilters();
+        alert('¡Datos demo cargados con éxito! Puedes probar la pestaña de Reportes.');
+      }
+    }
+  </script>
+</body>
+</html>
